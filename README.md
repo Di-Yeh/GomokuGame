@@ -46,5 +46,77 @@
 }
 ```
 
-quasar启动方式
-`yarn quasar dev`
+**局域网联机配置**🛜
+
+第一步：获取主机的局域网 IP
+
+> 在自己的主机（运行代码的那台）上：
+> 按下 `Win + R`，输入 `cmd` 回车。
+> 
+> 输入 `ipconfig`。
+> 
+> 找到 IPv4 地址，通常是 192.168.1.XX 或 192.168.0.XX。
+> 
+> 假设主机的 IP 是：192.168.1.5 (以下步骤请替换为主机实际查到的 IP)。
+
+第二步：后端配置 (ASP.NET Core)
+
+> 修改 `launchSettings.json`
+>
+> 确保监听地址包含 0.0.0.0，这样它才会接收来自外部 IP 的请求。
+>
+> ```json
+> "applicationUrl": "https://0.0.0.0:7239;http://0.0.0.0:5203",
+> ```
+>
+> 修改 Program.cs (CORS 跨域配置)
+>
+> ```csharp
+> builder.Services.AddCors(options =>
+> {
+>     options.AddPolicy("AllowAll", policy =>
+>     {
+>         policy.SetIsOriginAllowed(_ => true) // 允许局域网内任何设备连接
+>               .AllowAnyHeader()
+>               .AllowAnyMethod()
+>               .AllowCredentials(); // SignalR 必须
+>     });
+> });
+> 
+> var app = builder.Build();
+> app.UseCors("AllowAll"); // 确保在 UseRouting 之后，UseEndpoints 之前
+> ```
+
+第三步：前端配置 (Vue 3 + SignalR)
+
+> 修改 SignalR 连接地址
+>
+> 在 `initSignalR` 函数里，把 `localhost` 换成你刚才查到的主机 IP。
+>
+> ```javascript
+> connection = new signalR.HubConnectionBuilder()
+>    // 必须用 IP 地址，不能用 localhost
+>    .withUrl('https://192.168.1.5:5203/gomokuHub') 
+>    .withAutomaticReconnect()
+>    .build();
+> ```
+
+第四步：Windows 防火墙问题（可选）
+
+> 如果前面三步完成后就可以访问网站的话就不需要第四步了
+>
+> 1. 打开控制面板 -> 系统和安全 -> Windows Defender 防火墙。
+> 2. 点击 "高级设置"。
+> 3. 点击 "入站规则" -> "新建规则"。
+> 4. 选择 "端口" -> TCP。
+> 5. 在特定本地端口输入：7239, 5203, 5173。
+> 6. 一路点击 "下一步"，确保选中了 "允许连接"。
+> 7. 给规则起名：`GomokuGame-LAN`。
+
+第五步：如何访问
+
+> 启动后端：在 Visual Studio 里运行项目。
+>
+> 启动前端：在终端运行 `yarn quasar dev`。
+>
+> 确保要访问的电脑/手机是在同一个网域，在浏览器输入`http://192.168.1.5:9000/`就可以访问网站了。
