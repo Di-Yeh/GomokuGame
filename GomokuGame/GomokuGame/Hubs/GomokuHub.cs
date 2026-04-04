@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using GomokuGame.Data;
+﻿using GomokuGame.Data;
 using GomokuGame.Models;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace GomokuGame.Hubs;
 
@@ -22,7 +22,7 @@ public class GomokuHub : Hub
     /// <returns></returns>
     public async Task JoinRoom(string roomCode, string playerName)
     {
-        // 1. 查出房间
+        // 查出房间
         var game = await _db.Games
             .Include(g => g.Players)
             .FirstOrDefaultAsync(g => g.RoomCode == roomCode);
@@ -33,8 +33,8 @@ public class GomokuHub : Hub
             return;
         }
 
-        // --- 【关键修改】 只要进这个方法，先把当前这个连接拉进组里 ---
-        // 这样不管是新来的，还是刷新的，都能保证在“群聊名单”里
+        // --- 【关键修改】 先把当前这个连接拉进组里 ---
+        // 这样不管是新来的，还是刷新的，都能保证在"玩家名单"里
         await Groups.AddToGroupAsync(Context.ConnectionId, roomCode);
 
         // 检查是否已经是房间成员（重连逻辑）
@@ -42,10 +42,9 @@ public class GomokuHub : Hub
         if (existingPlayer != null)
         {
             await Clients.Caller.SendAsync("JoinSuccess", new { order = existingPlayer.PlayerOrder, color = existingPlayer.Color });
-            return; // 这里 return 没问题，因为上面已经加入过 Group 了
+            return;
         }
 
-        // 2. 这里的 Count 是准的
         int order = game.Players.Count + 1;
 
         if (order > game.MaxPlayers)
@@ -63,13 +62,11 @@ public class GomokuHub : Hub
             Color = colors[order - 1]
         };
 
-        // 3. 保存到数据库
+        // 保存到数据库
         _db.GamePlayers.Add(player);
         await _db.SaveChangesAsync();
 
-        // --- 【注意】这里原本的 AddToGroupAsync 可以删掉了，因为上面已经做过了 ---
-
-        // 4. 发送加入消息
+        // 发送加入消息
         await Clients.Group(roomCode).SendAsync("PlayerJoined", new
         {
             playerName,
@@ -77,7 +74,7 @@ public class GomokuHub : Hub
             color = player.Color
         });
 
-        // 5. 发送确认消息
+        // 发送确认消息
         await Clients.Caller.SendAsync("JoinSuccess", new { order = order, color = player.Color });
     }
 
@@ -155,7 +152,7 @@ public class GomokuHub : Hub
     }
 
     /// <summary>
-    /// 断线重连（解决刷新页面无法显示资料问题）
+    /// 获取玩家数据（解决刷新页面无法显示资料问题）
     /// </summary>
     /// <param name="roomCode"></param>
     /// <returns></returns>
@@ -178,19 +175,19 @@ public class GomokuHub : Hub
     }
 
     /// <summary>
-    /// 获取棋盘状态
+    /// 获取棋盘状态（解决刷新页面无法显示资料问题）
     /// </summary>
     /// <param name="roomCode"></param>
     /// <returns></returns>
     public async Task GetBoardState(string roomCode)
     {
-        // 1. 先根据房间号查出 Game 实体
+        // 先根据房间号查出 Game 实体
         var game = await _db.Games
             .FirstOrDefaultAsync(g => g.RoomCode == roomCode);
 
         if (game == null) return;
 
-        // 2. 查出该游戏下所有的落子，并按步数排序
+        // 查出该游戏下所有的落子，并按步数排序
         var moves = await _db.Moves
             .Where(m => m.GameId == game.GameId)
             .OrderBy(m => m.StepNumber)
@@ -202,7 +199,7 @@ public class GomokuHub : Hub
             })
             .ToListAsync();
 
-        // 3. 将棋盘数据和“当前该谁下”一起发回给刷新页面的玩家
+        // 将棋盘数据和“当前该谁下”一起发回给刷新页面的玩家
         await Clients.Caller.SendAsync("UpdateBoardState", new
         {
             moves = moves,
@@ -210,13 +207,18 @@ public class GomokuHub : Hub
         });
     }
 
+    /// <summary>
+    /// 获取聊天室讯息（解决刷新页面无法显示资料问题）
+    /// </summary>
+    /// <param name="roomCode"></param>
+    /// <returns></returns>
     public async Task GetChatHistory(string roomCode)
     {
-        // 1. 找到对应的游戏
+        // 找到对应的游戏
         var game = await _db.Games.FirstOrDefaultAsync(g => g.RoomCode == roomCode);
         if (game == null) return;
 
-        // 2. 查出记录，使用 SenderName
+        // 查出记录，使用 SenderName
         var chatHistory = await _db.ChatMessages
             .Where(m => m.GameId == game.GameId)
             .OrderBy(m => m.Timestamp)
