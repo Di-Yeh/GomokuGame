@@ -1,6 +1,5 @@
 ﻿using GomokuGame.Data;
 using GomokuGame.Hubs;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 /********************************* --- 注册服务 --- ******************************** */
@@ -30,7 +29,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GomokuDbContext>();
 
-    // 1. 先删除所有依赖于 Games 的子表数据
+    // 删除所有依赖于 Games 的子表数据
     db.ChatMessages.RemoveRange(db.ChatMessages);
     db.Moves.RemoveRange(db.Moves);
     db.GamePlayers.RemoveRange(db.GamePlayers);
@@ -38,13 +37,13 @@ using (var scope = app.Services.CreateScope())
     // 先保存一次，把子表清空
     db.SaveChanges();
 
-    // 2. 现在子表空了，可以安全删除主表 Games 了
+    // 再删除主表 Games 了
     db.Games.RemoveRange(db.Games);
 
     // 再次保存
     db.SaveChanges();
 
-    Console.WriteLine(">>> 数据库已重置，外键冲突已化解，环境清洁！ <<<");
+    Console.WriteLine(">>> 数据库已重置，外键冲突已化解，环境已清洁！ <<<");
 }
 
 
