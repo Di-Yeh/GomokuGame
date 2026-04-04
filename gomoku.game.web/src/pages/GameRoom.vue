@@ -4,7 +4,7 @@
       <div class="col-12 col-md-8">
         <q-card class="game-board-card shadow-5 column flex-center">
           <div class="text-h5 q-mb-md text-weight-bold text-primary">
-            三方对弈 - 房号: {{ roomCode }}
+            多P五子棋 - 房号: {{ roomCode }}
           </div>
 
           <div class="canvas-wrapper bg-orange-2 shadow-2 full-width flex flex-center">
@@ -46,7 +46,7 @@
         </q-card>
 
         <q-card class="col column q-pa-md shadow-5">
-          <div class="text-subtitle1 text-bold q-mb-sm">实时聊天</div>
+          <div class="text-subtitle1 text-bold q-mb-sm">聊天室</div>
 
           <q-scroll-area class="col q-mb-md bg-white rounded-borders border-grey">
             <q-list separator>
@@ -86,7 +86,6 @@ import * as signalR from '@microsoft/signalr';
 import { Dialog, Notify, useQuasar } from 'quasar';
 
 const $q = useQuasar();
-
 const route = useRoute();
 const roomCode = ref(String(route.query.roomCode || ''));
 const myName = ref(String(route.query.name || '未知玩家'));
@@ -97,8 +96,7 @@ const boardSize = 15; // 15x15
 const padding = 30; // 棋盘边缘留白
 
 // 模拟数据
-const messages = ref<ChatMessage[]>([{ user: '系统', text: '欢迎来到三人棋局！' }]);
-
+const messages = ref<ChatMessage[]>([{ user: '系统', text: '欢迎来到多P五子棋!' }]);
 const newMsg = ref('');
 const newMessage = ref('');
 
@@ -108,12 +106,13 @@ interface ChatMessage {
   time?: string; // 加个问号表示这个字段是可选的
 }
 
-// 获取玩家代表色
+// --- 获取玩家代表色 ---
 const getPlayerColor = (order: number) => {
   const colors = ['black', 'grey-4', 'red']; // 黑、白、红
   return colors[order - 1];
 };
 
+// --- 发送讯息 ---
 const sendChat = async () => {
   // 对应 template 里的 v-model="newMsg"
   if (!newMsg.value.trim()) return;
@@ -170,11 +169,11 @@ const initSignalR = async () => {
     .withAutomaticReconnect()
     .build();
 
-  // --- 1. 先把所有的【频道】(监听器) 全部挂上去 ---
+  // --- 先把所有的【频道】(监听器) 全部挂上去 ---
 
   // --- 监听落子 ---
   connection.on('StonePlaced', (row: number, col: number, player: number, nextTurn: number) => {
-    console.log(`收到落子同步：玩家 ${player} 在 ${row},${col}`);
+    messages.value.push({ user: '系统', text: `玩家${player} 在 [${row},${col}] 位置下棋` });
 
     const rowData = boardState.value[row];
     if (rowData) {
@@ -183,13 +182,14 @@ const initSignalR = async () => {
 
       // 检查胜负
       if (checkWin(row, col, player)) {
-        // 使用大写的 Dialog 关键字直接调用
         Dialog.create({
-          title: '游戏结束',
-          message: `恭喜玩家 ${player} 获胜！`,
+          title: '游戏结束🎮',
+          message: `恭喜玩家${player} 🎉 ${
+            playerList.value.find((p) => p.order == player)?.playerName
+          } 🎉 获得多P五子棋对局胜利🏆！`,
           persistent: true,
           ok: {
-            label: '回到主页',
+            label: '回到主页🏠',
             color: 'primary',
           },
         }).onOk(() => {
@@ -198,16 +198,20 @@ const initSignalR = async () => {
         return;
       }
 
-      // 使用后端传回来的 nextTurn，确保所有人步调一致
+      // --- 使用后端传回来的 nextTurn，确保所有人步调一致 ---
       currentPlayer.value = nextTurn;
     }
   });
 
-  // --- 监听加入成功 (给自己赋值) ---
+  // --- 监听加入成功 (给玩家自己赋值) ---
   connection.on('JoinSuccess', (data: { order: number; color: string }) => {
-    console.log('收到加入成功:', data);
     myOrder.value = data.order;
-    $q.notify({ message: `入场成功！你是玩家 ${data.order}`, color: 'positive' });
+    $q.notify({
+      message: `入房成功！你是玩家 ${data.order}`,
+      color: 'positive',
+      position: 'top',
+      timeout: 2500,
+    });
   });
 
   // --- 监听玩家加入广播 ---
@@ -234,7 +238,7 @@ const initSignalR = async () => {
 
   // --- 监听棋盘更新 ---
   connection.on('UpdateBoardState', (data: BoardStateData) => {
-    console.log('正在同步棋盘状态...', data);
+    // console.log('正在同步棋盘状态...', data);
 
     // 1. 同步当前回合
     currentPlayer.value = data.currentTurn;
@@ -256,20 +260,25 @@ const initSignalR = async () => {
   });
 
   connection.on('ReceiveChatHistory', (history: ChatMessage[]) => {
-    console.log('加载历史记录:', history);
+    // console.log('加载历史记录:', history);
 
     // 保留那个初始的“系统欢迎语”，然后把历史记录接在后面
     // 用解构赋值 [...] 可以触发 Vue 的响应式更新
-    messages.value = [{ user: '系统', text: '欢迎来到三人棋局！' }, ...history];
+    messages.value = [{ user: '系统', text: '欢迎来到多P五子棋！' }, ...history];
   });
 
   connection.on('ReceiveError', (error: string) => {
-    $q.notify({ type: 'negative', message: error, position: 'top', timeout: 2500 });
+    $q.notify({
+      type: 'negative',
+      message: error,
+      position: 'top',
+      timeout: 2500,
+    });
   });
 
   try {
     await connection.start();
-    console.log('SignalR 连接成功，开始初始化数据...');
+    // console.log('SignalR 连接成功，开始初始化数据...');
 
     // 4. 连接成功后，发送请求
     await connection.invoke('JoinRoom', roomCode.value, myName.value);
@@ -284,7 +293,7 @@ const initSignalR = async () => {
 
 /********************************** 绘制棋盘 Start **********************************/
 onMounted(() => {
-  console.log('当前本地记录的名字是:', myName.value); // 确认这里不是空的或者默认值
+  // console.log('当前本地记录的名字是:', myName.value); // 确认这里不是空的或者默认值
   window.addEventListener('resize', initCanvas);
   initCanvas();
   void initSignalR();
@@ -304,18 +313,18 @@ const initCanvas = () => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // 1. 获取父容器
+  // 获取父容器
   const parent = canvas.parentElement;
   if (!parent) return;
 
-  // 2. 同时获取父容器的宽度和高度
+  // 同时获取父容器的宽度和高度
   const availableWidth = parent.clientWidth;
-  // 我们往上找 game-board-card 的实际渲染高度，减去标题和文字占用的空间（约150px）
+  // 往上找 game-board-card 的实际渲染高度，减去标题和文字占用的空间
   const boardCard = canvas.closest('.game-board-card');
   const availableHeight = (boardCard?.clientHeight || 600) - 150;
 
-  // 3. 取宽和高中较小的一个作为边长，确保它是正方形
-  // 我们把减去的边距缩小（比如只减 20），让棋盘尽可能铺满
+  // 取宽和高较小的一个作为边长，确保它是正方形
+  // 减去的边距缩小，让棋盘尽可能铺满
   const size = Math.min(availableWidth, availableHeight) - 20;
 
   canvas.width = size;
@@ -325,15 +334,17 @@ const initCanvas = () => {
 };
 
 const drawBoard = (ctx: CanvasRenderingContext2D, size: number) => {
-  const cellSize = (size - padding * 2) / (boardSize - 1); // 计算格子间距
+  // 计算格子间距
+  const cellSize = (size - padding * 2) / (boardSize - 1);
 
-  ctx.clearRect(0, 0, size, size); // 清空画布
+  // 清空画布
+  ctx.clearRect(0, 0, size, size);
 
-  // 1. 设置线条样式
+  // 设置线条样式
   ctx.strokeStyle = '#333';
   ctx.lineWidth = 1;
 
-  // 2. 画横线和纵线
+  // 画横线和纵线
   for (let i = 0; i < boardSize; i++) {
     const pos = padding + i * cellSize;
 
@@ -350,7 +361,7 @@ const drawBoard = (ctx: CanvasRenderingContext2D, size: number) => {
     ctx.stroke();
   }
 
-  // 3. 画五个“星位”（五子棋盘上的小黑点）
+  // 画五个“星位”（五子棋盘上的小黑点）
   const stars = [3, 7, 11]; // 对应的索引
   stars.forEach((row) => {
     stars.forEach((col) => {
@@ -374,7 +385,12 @@ const drawStar = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
 const handleCanvasClick = (event: MouseEvent) => {
   // --- 回合限制 ---
   if (currentPlayer.value !== myOrder.value) {
-    $q.notify({ type: 'warning', message: '还没轮到你！', position: 'top' });
+    $q.notify({
+      type: 'warning',
+      message: '还没轮到你！',
+      position: 'top',
+      timeout: 2500,
+    });
     return;
   }
 
@@ -390,13 +406,13 @@ const handleCanvasClick = (event: MouseEvent) => {
   const size = canvas.width;
   const cellSize = (size - padding * 2) / (boardSize - 1);
 
-  // 1. 估算点击的是哪一行哪一列
+  // 估算点击的是哪一行哪一列
   const col = Math.round((x - padding) / cellSize);
   const row = Math.round((y - padding) / cellSize);
 
-  // 2. 边界检查：必须在 0-14 范围内
+  // 边界检查：必须在 0-14 范围内
   if (row >= 0 && row < boardSize && col >= 0 && col < boardSize) {
-    // 3. 判定点击点是否足够靠近交叉点 (半径允许误差范围，比如 cellSize 的 40%)
+    // 判定点击点是否足够靠近交叉点 (半径允许误差范围，比如 cellSize 的 40%)
     const targetX = padding + col * cellSize;
     const targetY = padding + row * cellSize;
     const distance = Math.sqrt(Math.pow(x - targetX, 2) + Math.pow(y - targetY, 2));
@@ -413,7 +429,7 @@ const placeStone = async (row: number, col: number) => {
 
   if (connection && connection.state === signalR.HubConnectionState.Connected) {
     try {
-      // 调用后端的 PlaceStone (注意首字母大小写和参数顺序)
+      // 调用后端的 PlaceStone
       // 参数：roomCode, x, y, playerOrder
       await connection.invoke('PlaceStone', roomCode.value, row, col, myOrder.value);
     } catch (err) {
@@ -422,7 +438,7 @@ const placeStone = async (row: number, col: number) => {
   }
 };
 
-// 新增：刷新画布，先画线，再画棋子
+// --- 刷新画布，先画线，再画棋子 ---
 const refreshCanvas = () => {
   const canvas = gomokuCanvas.value;
   if (!canvas) return;
@@ -457,7 +473,7 @@ const drawPiece = (ctx: CanvasRenderingContext2D, x: number, y: number, type: nu
 
   // 根据玩家编号设颜色
   if (type === 1) ctx.fillStyle = '#000'; // 玩家1：黑
-  if (type === 2) ctx.fillStyle = '#FFFFFF'; // 玩家2：白（这里可以加个黑边框）
+  if (type === 2) ctx.fillStyle = '#FFFFFF'; // 玩家2：白
   if (type === 3) ctx.fillStyle = '#FF0000'; // 玩家3：红
 
   ctx.fill();
@@ -481,7 +497,7 @@ const checkWin = (row: number, col: number, player: number): boolean => {
   ];
 
   for (const dir of directions) {
-    // 显式解构，这样 dr 和 dc 就不会是 undefined 了
+    // 显式解构，这样 dr 和 dc 就不会是 undefined
     const [dr, dc] = dir;
     let count = 1;
 

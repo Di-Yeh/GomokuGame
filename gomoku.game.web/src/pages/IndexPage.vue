@@ -3,6 +3,7 @@
     <q-card class="glass-card q-pa-xl shadow-10 text-center">
       <q-card-section>
         <div class="text-h2 text-weight-bolder text-white text-shadow q-mb-xl">GomokuGame</div>
+        <div class="text-h6 text-weight-bolder text-black text-shadow">make by 谛叶λ</div>
       </q-card-section>
 
       <q-card-section class="column q-gutter-y-lg">
@@ -48,7 +49,7 @@
           <q-btn
             outline
             color="white"
-            label="加入现有房间"
+            label="加入房间"
             size="lg"
             class="full-width"
             @click="joinRoom"
@@ -71,13 +72,19 @@ const router = useRouter();
 const playerName = ref('Player_' + Math.floor(Math.random() * 100));
 const inputRoomCode = ref('');
 
+// --- 创建房间 ---
 const createRoom = async () => {
   try {
-    // 直接使用 api.post，路径只需要写后面的部分
+    // 直接使用 api.post，路径只写后面的部分
     const res = await api.post('/api/games/create');
     const { roomCode } = res.data;
 
-    $q.notify({ type: 'positive', message: '房间创建成功！' });
+    $q.notify({
+      type: 'positive',
+      message: '开房成功！',
+      position: 'top',
+      timeout: 2500,
+    });
 
     await router.push({
       name: 'game',
@@ -94,6 +101,7 @@ const createRoom = async () => {
   }
 };
 
+// --- 加入房间 ---
 const joinRoom = async () => {
   if (inputRoomCode.value.length === 6) {
     await router.push({
@@ -114,7 +122,7 @@ const joinRoom = async () => {
 <style scoped>
 /* 背景图设置 */
 .index-bg {
-  background-image: url('../assets/wallpaper.jpg'); /* 在这里替换你的图片地址 */
+  background-image: url('../assets/wallpaper.jpg'); /* 背景图片 */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -123,12 +131,12 @@ const joinRoom = async () => {
 
 /* 玻璃拟态卡片效果 */
 .glass-card {
-  background: rgba(102, 102, 255, 0.75); /* 黑色半透明背景 */
+  background: rgba(102, 102, 255, 0.75); /* 半透明背景 */
   backdrop-filter: blur(8px); /* 背景模糊效果 */
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   width: 90%;
-  max-width: 500px; /* 限制最大宽度，但在手机端会自动缩放 */
+  max-width: 500px; /* 限制最大宽度，在手机端会自动缩放 */
 }
 
 /* 文字阴影，让白色大字更清晰 */
