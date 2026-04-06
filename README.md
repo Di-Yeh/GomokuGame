@@ -27,6 +27,8 @@
 
 ## 环境搭建🏗️
 
+> 后端项目使用命令行发布 `dotnet publish -c Release -o ./publish`
+
 > 注意⚠️ 需要安装SQL Server Management Studio 20 或其他SQL Server
 
 在`appsettings.json`文件中需要在`conn`中填入你的SQL Server的用户数据
