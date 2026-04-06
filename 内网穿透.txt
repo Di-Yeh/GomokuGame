@@ -1,0 +1,13 @@
+使用这个 https://localhost.run/
+
+在quasar.config.ts中修改这devServer为这样：
+
+devServer: {
+	  host: '0.0.0.0',      // 关键：允许外部通过 IP 或隧道访问
+	  allowedHosts: true,   // 你刚才已经改好的
+	  port: 9000,
+	  open: true,
+	},
+
+开启终端输入 ssh -R 80:127.0.0.1:9000 nokey@localhost.run
+就会显示QR Code和网址
