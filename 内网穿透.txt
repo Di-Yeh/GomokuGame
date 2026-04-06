@@ -1,13 +1,28 @@
 使用这个 https://localhost.run/
 
+第一步：
 在quasar.config.ts中修改这devServer为这样：
 
 devServer: {
-	  host: '0.0.0.0',      // 关键：允许外部通过 IP 或隧道访问
-	  allowedHosts: true,   // 你刚才已经改好的
+	  host: '0.0.0.0',      // 允许外部通过 IP 或隧道访问
+	  allowedHosts: true,
 	  port: 9000,
 	  open: true,
 	},
 
+第二步：
+启动后端，如果后端的端口被占用了的话，就更改Properties/launchSettings.json文件里面的端口，如果是publish（发布版本），就该文件夹里面的appsettings.json文件端口。
+然后输入 ssh -R 80:127.0.0.1:5204 nokey@localhost.run ，5204为后端监听的端口，根据自己的后端监听端口做修改。
+启动后，把网址复制下来，类似 https://e4d7e55855b1ab.lhr.life 这种网址。
+
+第三步：
+修改前端src/pages/GameRoom.vue里面的signalR.HubConnectionBuilder()，把原本连接后端监听的网址改成刚刚复制的网址，类似这样：
+connection = new signalR.HubConnectionBuilder()
+    .withUrl('https://e4d7e55855b1ab.lhr.life/gomokuHub')
+    .withAutomaticReconnect()
+    .build();
+
 开启终端输入 ssh -R 80:127.0.0.1:9000 nokey@localhost.run
 就会显示QR Code和网址
+
+这样手机或其他电脑就能访问五子棋网站了
