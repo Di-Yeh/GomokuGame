@@ -14,7 +14,10 @@ declare module 'vue' {
 // good idea to move this instance creation inside of the
 // "export default () => {}" function below (which runs individually
 // for each client)
-const api = axios.create({ baseURL: 'https://localhost:7239' });
+// 自动获取当前浏览器地址栏里的 IP
+const serverIP = window.location.hostname;
+const apiBaseUrl = `http://${serverIP}:5204`;
+const api = axios.create({ baseURL: apiBaseUrl });
 
 export default defineBoot(({ app }) => {
   // for use inside Vue files (Options API) through this.$axios and this.$api
