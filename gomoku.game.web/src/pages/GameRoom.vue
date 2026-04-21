@@ -158,6 +158,10 @@ const playerList = ref<PlayerInfo[]>([]);
 // --- SignalR 相关 ---
 let connection: signalR.HubConnection | null = null;
 
+// 自动获取当前浏览器地址栏里的 IP
+const serverIP = window.location.hostname;
+const apiBaseUrl = `http://${serverIP}:5204`;
+
 /********************************** SignalR Start **********************************/
 const initSignalR = async () => {
   if (connection) {
@@ -165,7 +169,7 @@ const initSignalR = async () => {
   }
 
   connection = new signalR.HubConnectionBuilder()
-    .withUrl('https://localhost:7239/gomokuHub')
+    .withUrl(apiBaseUrl + '/gomokuHub')
     .withAutomaticReconnect()
     .build();
 
@@ -280,7 +284,7 @@ const initSignalR = async () => {
     await connection.start();
     // console.log('SignalR 连接成功，开始初始化数据...');
 
-    // 4. 连接成功后，发送请求
+    // 连接成功后，发送请求
     await connection.invoke('JoinRoom', roomCode.value, myName.value);
     await connection.invoke('GetRoomPlayers', roomCode.value);
     await connection.invoke('GetBoardState', roomCode.value);
